@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE.txt" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="ChatApp/ChatApp.csproj" Id="e20bca4c-32ca-4339-912a-152fdc785139" />
+  <Project Path="GenAI.CSharp/GenAI.CSharp.csproj" />
+</Solution>

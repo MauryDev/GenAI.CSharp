@@ -1,0 +1,107 @@
+@using ChatApp.Models
+@using MudBlazor
+@using ChatApp.Services
+@using ChatApp.Repositories
+@inject ChatRepository ChatRepository
+@inject ChatService ChatService
+@inject ChatStateContainer ChatState
+@inject NavigationManager NavManager
+@inherits LayoutComponentBase
+
+<MudLayout>
+    <MudDrawer Open="true" Elevation="1" Variant="@DrawerVariant.Persistent" Class="bg-slate-900 text-white">
+        <div class="p-4 flex flex-col h-full">
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.Add" 
+                       OnClick="NewChat" 
+                       Class="mb-6 py-3 rounded-xl font-bold">
+                Novo Chat
+            </MudButton>
+
+            <div class="flex-grow overflow-y-auto space-y-2">
+                <MudText Typo="Typo.caption" Class="text-slate-400 ml-2 mb-2">HISTÓRICO</MudText>
+                @foreach (var session in _sessions)
+                {
+                    <div class="group relative">
+                        <MudPaper @onclick="@(() => SelectSession(session.Id))"
+                                  Class="@GetSessionClass(session.Id)">
+                            <div class="flex items-center gap-3 truncate pr-8">
+                                <MudIcon Icon="@Icons.Material.Filled.ChatBubbleOutline" Size="Size.Small" />
+                                <MudText Typo="Typo.body2" Class="truncate">@session.Title</MudText>
+                            </div>
+                        </MudPaper>
+                        
+                        <button @onclick="() => DeleteSession(session.Id)"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                            <MudIcon Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </MudDrawer>
+
+    <MudAppBar Elevation="0" Class="bg-white text-slate-800 border-b border-slate-200">
+        <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Primary" Class="mr-3" />
+        <MudText Typo="Typo.h6" Class="font-bold">GenAI Assistant</MudText>
+        <MudSpacer />
+    </MudAppBar>
+
+    <MudMainContent>
+        <div class="p-0">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@code {
+    private List<ChatSession> _sessions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ChatState.OnChange += async () => await RefreshSessions();
+        ChatService.OnMessagesChanged += async () => await RefreshSessions();
+        await RefreshSessions();
+    }
+
+    private async Task RefreshSessions()
+    {
+        _sessions = await ChatRepository.GetAllSessionsAsync();
+        StateHasChanged();
+    }
+
+    private async Task NewChat()
+    {
+        await ChatService.CreateNewSession();
+        NavManager.NavigateTo("/");
+    }
+
+    private void SelectSession(Guid id)
+    {
+        ChatState.SetCurrentChatId(id);
+        NavManager.NavigateTo("/");
+    }
+
+    private async Task DeleteSession(Guid id)
+    {
+        await ChatRepository.DeleteSessionAsync(id);
+        if (ChatState.CurrentChatId == id)
+        {
+            ChatState.SetCurrentChatId(null);
+        }
+        await RefreshSessions();
+    }
+
+    private string GetSessionClass(Guid sessionId)
+    {
+        var baseClass = "px-4 py-3 rounded-lg cursor-pointer transition-all flex items-center justify-between ";
+        return baseClass + (ChatState.CurrentChatId == sessionId 
+            ? "bg-indigo-600 text-white" 
+            : "bg-transparent text-slate-300 hover:bg-slate-800");
+    }
+}
