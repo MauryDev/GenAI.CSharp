@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace GenAI.CSharp.Models
 {
-    internal record LicaoSemanaResumo
+    public record LicaoSemanaResumo
     (
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("verso")] string Verso,

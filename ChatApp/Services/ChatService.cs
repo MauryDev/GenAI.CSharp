@@ -2,6 +2,7 @@ using ChatApp.Models;
 using ChatApp.Repositories;
 using GenAI.CSharp.Services;
 using Microsoft.Extensions.AI;
+using ModelContextProtocol.Client;
 
 namespace ChatApp.Services;
 
@@ -15,11 +16,14 @@ public class ChatService
 
     public ChatService(AIService aiService, ChatRepository repository, ChatStateContainer state)
     {
+
+      
         _aiService = aiService;
         _repository = repository;
         _state = state;
     }
 
+   
     public async Task<IEnumerable<Models.ChatMessage>> GetMessagesAsync()
     {
         if (_state.CurrentChatId == null)

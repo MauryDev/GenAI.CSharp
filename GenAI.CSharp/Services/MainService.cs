@@ -11,8 +11,12 @@ namespace GenAI.CSharp.Services
         public static void AddGenAiLesson(this IServiceCollection services)
         {
             services.AddScoped<AIService>();
-            services.AddScoped<ISkillsService,LicaoService>();
+            services.AddScoped<LicaoService>();
 
+        }
+        public static void AddGenAiTools(this IMcpServerBuilder mcpServerBuilder)
+        {
+            mcpServerBuilder.WithTools<Tools.LicaoSkills>();
         }
     }
 }

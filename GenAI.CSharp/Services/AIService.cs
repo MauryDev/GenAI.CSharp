@@ -2,6 +2,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol.Client;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
@@ -16,8 +17,11 @@ public class AIService
     private readonly IChatClient _chatClient;
     private readonly ILogger<AIService> _logger;
     private readonly List<AITool> _tools = [];
+    McpClient mcpClient;
 
-    public AIService(IEnumerable<ISkillsService> skillsServices, IConfiguration config, ILogger<AIService> logger)
+    public AIService(IConfiguration config,
+        ILogger<AIService> logger,
+        McpClient mcpClient)
     {
         _logger = logger;
         var tokenAI = config["AIConfig:PROVIDER_TOKEN"]!;
@@ -39,11 +43,39 @@ public class AIService
             .AsIChatClient();
 
 
-        RegisterTools();
-
-        AddTools(skillsServices.Select(skillsServices => skillsServices.Skills));
+        this.mcpClient = mcpClient;
     }
 
+    private async Task InitializeMcpToolsAsync(McpClient mcpClient)
+    {
+        try
+        {
+            // Busca a lista de ferramentas que o servidor MCP (com LicaoSkills) expõe
+            var mcpTools = await mcpClient.ListToolsAsync();
+
+            foreach (var mcpTool in mcpTools)
+            {
+                // Converte a ferramenta do MCP em uma AIFunction compatível com Microsoft.Extensions.AI
+                var aiTool = AIFunctionFactory.Create(
+                    async (Dictionary<string, object> arguments) =>
+                    {
+                        // Quando a IA decidir chamar a ferramenta, repassamos a chamada para o servidor MCP
+                        return await mcpClient.CallToolAsync(mcpTool.Name, arguments);
+                    },
+                    name: mcpTool.Name,
+                    description: mcpTool.Description
+                // Nota: Se a biblioteca fornecer um mapeador de Schema, você pode passar aqui
+                );
+
+                _tools.Add(aiTool);
+                _logger.LogInformation("Ferramenta MCP adicionada: {ToolName}", mcpTool.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao inicializar ferramentas do servidor MCP.");
+        }
+    }
 
 
     private void RegisterTools()
@@ -56,6 +88,7 @@ public class AIService
                 "Retorna o dia da semana atual."
             )
         );
+
     }
 
     public void AddTools(IEnumerable<AITool> aITools)
@@ -77,9 +110,15 @@ public class AIService
 
     public async Task<string> ChatAsync(List<ChatMessage> messages)
     {
+        _tools.Clear();
+        RegisterTools();
+
+
+        await InitializeMcpToolsAsync(mcpClient);
         var options = new ChatOptions
         {
             Tools = _tools,
+            
             ToolMode = ChatToolMode.Auto
         };
 
@@ -95,6 +134,7 @@ public class AIService
             messages.Add(message);
 
             var toolCalls = message.Contents.OfType<FunctionCallContent>().ToList();
+            
             if (toolCalls.Count == 0) return message.Text ?? "";
 
             foreach (var toolCall in toolCalls)
