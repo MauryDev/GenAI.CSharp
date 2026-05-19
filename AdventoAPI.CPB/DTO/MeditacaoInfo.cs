@@ -2,6 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace GenAI.CSharp.Models;
+namespace AdventoAPI.CPB.DTO;
 
 public record MeditacaoInfo(string Title, string Description);

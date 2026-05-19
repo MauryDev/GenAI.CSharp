@@ -1,11 +1,8 @@
 using GenAI.CSharp.Models;
-using GenAI.CSharp.Services;
+using AdventoAPI.CPB.API;
 using ModelContextProtocol.Server;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace GenAI.CSharp.Tools;
 
@@ -14,9 +11,9 @@ public class DevocionalJovemSkills
 {
     private readonly DevocionalJovem _devocional;
 
-    public DevocionalJovemSkills(DevocionalJovem devocional)
+    public DevocionalJovemSkills(IHttpClientFactory httpClientFactory)
     {
-        _devocional = devocional;
+        _devocional = new DevocionalJovem(httpClientFactory);
     }
 
     [McpServerTool]

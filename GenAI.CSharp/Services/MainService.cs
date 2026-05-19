@@ -11,17 +11,13 @@ namespace GenAI.CSharp.Services
        
         public static IServiceCollection AddGenAiLesson(this IServiceCollection services)
         {
-            return services.AddScoped<AIService>()
-                .AddScoped<LicaoService>()
-                .AddScoped<DevocionalDiario>()
-                .AddScoped<DevocionalMulher>()
-                .AddScoped<DevocionalJovem>();
+            return services.AddScoped<AIService>();
 
 
         }
         public static IMcpServerBuilder AddGenAiTools(this IMcpServerBuilder mcpServerBuilder)
         {
-            return mcpServerBuilder.WithTools<Tools.LicaoSkills>()
+            return mcpServerBuilder.WithTools<Tools.LicaoAdultoSkills>()
                 .WithTools<Tools.DevocionalDiarioSkills>()
                 .WithTools<Tools.DevocionalJovemSkills>()
                 .WithTools<DevocionalMulherSkills>();

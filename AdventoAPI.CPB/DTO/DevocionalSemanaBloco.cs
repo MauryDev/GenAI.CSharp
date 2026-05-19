@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime;
 using System.Text;
 
-namespace GenAI.CSharp.Models;
+namespace AdventoAPI.CPB.DTO;
 
 public record DevocionalSemanaBloco(DateOnly DataInicio, DateOnly DataFinal, int NumberMeditacaoes, List<DevocionalDiaInfo> Dias);
 

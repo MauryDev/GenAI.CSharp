@@ -1,11 +1,8 @@
-﻿using GenAI.CSharp.Utils;
-using Microsoft.Extensions.AI;
+﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 using OpenAI;
-using OpenAI.Chat;
 using System.ClientModel;
 using System.Diagnostics;
 using System.Text.Json;
@@ -79,22 +76,7 @@ public class AIService
 
     }
 
-    public void AddTools(IEnumerable<AITool> aITools)
-    {
-        _tools.AddRange(aITools);
-    }
-    public void AddTools(IEnumerable<ISkills> aITools)
-    {
-        _tools.AddRange(aITools.SelectMany(e => e.GetAITools()));
-    }
-    public void AddTools(ISkills aITools)
-    {
-        _tools.AddRange(aITools.GetAITools());
-    }
-    public void AddTool(AITool aITool)
-    {
-        _tools.Add(aITool);
-    }
+    
 
     public async Task<string> ChatAsync(List<ChatMessage> messages)
     {

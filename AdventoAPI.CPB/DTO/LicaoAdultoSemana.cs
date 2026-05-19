@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 
-namespace GenAI.CSharp.Models;
+namespace AdventoAPI.CPB.DTO;
 
-public record LicaoSemana(
+public record LicaoAdultoSemana(
  [property: JsonPropertyName("img")] string Img,
  [property: JsonPropertyName("title")] string Title,
  [property: JsonPropertyName("verso")] string Verso,

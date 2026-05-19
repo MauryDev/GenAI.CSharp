@@ -1,9 +1,4 @@
-﻿using AngleSharp;
-using AngleSharp.Dom;
-using System.Globalization;
-using System.Text.RegularExpressions;
-
-namespace GenAI.CSharp.Services;
+﻿namespace AdventoAPI.CPB.API;
 
 
 public class DevocionalMulher(IHttpClientFactory httpClientFactory) : DevocionalBase(httpClientFactory)

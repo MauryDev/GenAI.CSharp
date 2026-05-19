@@ -1,7 +1,5 @@
-﻿using GenAI.CSharp.Models;
-using GenAI.CSharp.Services;
-using Microsoft.Extensions.AI;
-using ModelContextProtocol.Protocol;
+﻿using AdventoAPI.CPB.API;
+using AdventoAPI.CPB.DTO;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -9,12 +7,12 @@ using System.ComponentModel.DataAnnotations;
 namespace GenAI.CSharp.Tools;
 
 [McpServerToolType]
-public class LicaoSkills
+public class LicaoAdultoSkills
 {
-    LicaoService licaoService;
-    public LicaoSkills(LicaoService licaoService)
+    LicaoAdulto licaoService;
+    public LicaoAdultoSkills(IHttpClientFactory httpClientFactory)
     {
-        this.licaoService = licaoService;
+        this.licaoService = new LicaoAdulto(httpClientFactory);
     }
     [McpServerTool]
     [Description("Obtém a lição do dia atual da semana corrente.")]
@@ -26,13 +24,13 @@ public class LicaoSkills
     [Description("0=domingo até 6=sábado")]
     public async Task<object> licao_getSemanaLicaoCorrenteByDiaSemana([Description("Obtém a lição por um dia da semana específico da semana corrente.")][Required] int index)
     {
-        return await licaoService.GetLicaoByDia(index);
+        return await licaoService.GetLicaoByDiaSemana(index);
     }
     [McpServerTool]
     [Description("Obtém a lição de uma semana específica do trimestre por um dia específico.")]
     public async Task<object> licao_getLicaoByWeekAndDia([Description("Número da semana no trimestre (1-13)."), Required] int weekIndex, [Description("0=domingo até 6=sábado")][Required] int diaIndex)
     {
-        return await licaoService.GetLicaoByWeekAndDia(weekIndex, diaIndex);
+        return await licaoService.GetLicaoByWeekAndDiaSemana(weekIndex, diaIndex);
     }
     [McpServerTool]
     [Description("Obtém a lista de todos os temas/títulos das lições da semana corrente.")]
@@ -72,7 +70,7 @@ public class LicaoSkills
     }
     [McpServerTool]
     [Description("Obtém a lição da semana corrente.")]
-    public async Task<LicaoSemanaResumo> licao_getLicaoSemana()
+    public async Task<LicaoAdultoSemanaResumo> licao_getLicaoSemana()
     {
         return await licaoService.GetLicaoSemana();
     }
@@ -84,7 +82,7 @@ public class LicaoSkills
     }
     [McpServerTool]
     [Description("Obtém a lista de todas as lições do trimestre corrente.")]
-    public async Task<LicaoSemanaResumo[]> licao_getLicoesTrimestre()
+    public async Task<LicaoAdultoSemanaResumo[]> licao_getLicoesTrimestre()
     {
         return await licaoService.GetLicoesTrimestre();
     }
