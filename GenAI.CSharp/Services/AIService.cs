@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
@@ -52,22 +53,9 @@ public class AIService
         {
             // Busca a lista de ferramentas que o servidor MCP (com LicaoSkills) expõe
             var mcpTools = await mcpClient.ListToolsAsync();
-
+            _tools.AddRange(mcpTools);
             foreach (var mcpTool in mcpTools)
-            {
-                // Converte a ferramenta do MCP em uma AIFunction compatível com Microsoft.Extensions.AI
-                var aiTool = AIFunctionFactory.Create(
-                    async (Dictionary<string, object> arguments) =>
-                    {
-                        // Quando a IA decidir chamar a ferramenta, repassamos a chamada para o servidor MCP
-                        return await mcpClient.CallToolAsync(mcpTool.Name, arguments);
-                    },
-                    name: mcpTool.Name,
-                    description: mcpTool.Description
-                // Nota: Se a biblioteca fornecer um mapeador de Schema, você pode passar aqui
-                );
-
-                _tools.Add(aiTool);
+            {                
                 _logger.LogInformation("Ferramenta MCP adicionada: {ToolName}", mcpTool.Name);
             }
         }
@@ -113,8 +101,8 @@ public class AIService
         _tools.Clear();
         RegisterTools();
 
-
         await InitializeMcpToolsAsync(mcpClient);
+
         var options = new ChatOptions
         {
             Tools = _tools,

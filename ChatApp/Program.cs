@@ -43,7 +43,7 @@ builder.Services
     .WithHttpTransport(o => o.Stateless = false)
     .AddGenAiTools();
 
-builder.Services.AddSingleton(sp =>
+builder.Services.AddScoped(sp =>
 {
     var transport = new HttpClientTransport(new ()
     {
@@ -53,7 +53,7 @@ builder.Services.AddSingleton(sp =>
     {
         Capabilities = new ClientCapabilities
         {
-            Sampling = new() // <-- ISSO AQUI resolve o InvalidOperationException
+            Sampling = new()
         }
     };
     return McpClient.CreateAsync(transport, options).GetAwaiter().GetResult();

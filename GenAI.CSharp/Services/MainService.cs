@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using GenAI.CSharp.Tools;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,15 +9,23 @@ namespace GenAI.CSharp.Services
     public static class MainService
     {
        
-        public static void AddGenAiLesson(this IServiceCollection services)
+        public static IServiceCollection AddGenAiLesson(this IServiceCollection services)
         {
-            services.AddScoped<AIService>();
-            services.AddScoped<LicaoService>();
+            return services.AddScoped<AIService>()
+                .AddScoped<LicaoService>()
+                .AddScoped<DevocionalDiario>()
+                .AddScoped<DevocionalMulher>()
+                .AddScoped<DevocionalJovem>();
+
 
         }
-        public static void AddGenAiTools(this IMcpServerBuilder mcpServerBuilder)
+        public static IMcpServerBuilder AddGenAiTools(this IMcpServerBuilder mcpServerBuilder)
         {
-            mcpServerBuilder.WithTools<Tools.LicaoSkills>();
+            return mcpServerBuilder.WithTools<Tools.LicaoSkills>()
+                .WithTools<Tools.DevocionalDiarioSkills>()
+                .WithTools<Tools.DevocionalJovemSkills>()
+                .WithTools<DevocionalMulherSkills>();
+
         }
     }
 }
