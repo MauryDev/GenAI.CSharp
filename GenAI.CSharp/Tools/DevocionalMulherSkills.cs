@@ -14,7 +14,7 @@ public class DevocionalMulherSkills
 
     public DevocionalMulherSkills(IHttpClientFactory httpClientFactory)
     {
-        _devocional = new (httpClientFactory);
+        _devocional = new (httpClientFactory.CreateClient());
     }
 
     [McpServerTool]

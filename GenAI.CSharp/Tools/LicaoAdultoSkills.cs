@@ -12,7 +12,7 @@ public class LicaoAdultoSkills
     LicaoAdulto licaoService;
     public LicaoAdultoSkills(IHttpClientFactory httpClientFactory)
     {
-        this.licaoService = new LicaoAdulto(httpClientFactory);
+        this.licaoService = new LicaoAdulto(httpClientFactory.CreateClient());
     }
     [McpServerTool]
     [Description("Obtém a lição do dia atual da semana corrente.")]

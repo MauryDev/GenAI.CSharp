@@ -13,7 +13,7 @@ public class DevocionalDiarioSkills
 
     public DevocionalDiarioSkills(IHttpClientFactory httpClientFactory)
     {
-        _devocionalDiario = new DevocionalDiario(httpClientFactory);
+        _devocionalDiario = new DevocionalDiario(httpClientFactory.CreateClient());
     }
 
 

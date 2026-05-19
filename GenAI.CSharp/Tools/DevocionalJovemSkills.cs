@@ -13,7 +13,7 @@ public class DevocionalJovemSkills
 
     public DevocionalJovemSkills(IHttpClientFactory httpClientFactory)
     {
-        _devocional = new DevocionalJovem(httpClientFactory);
+        _devocional = new DevocionalJovem(httpClientFactory.CreateClient());
     }
 
     [McpServerTool]

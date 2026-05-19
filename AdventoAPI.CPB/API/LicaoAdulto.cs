@@ -7,7 +7,7 @@ namespace AdventoAPI.CPB.API;
 
 public class LicaoAdulto
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly HttpClient _client;
     private const string Url =
         "https://mais.cpb.com.br/licao/a-oracao-na-pratica-2o-trimestre-2026/";
 
@@ -16,9 +16,9 @@ public class LicaoAdulto
         "licaoDomingo", "licaoSegunda", "licaoTerca", "licaoQuarta", "licaoQuinta", "licaoSexta", "licaoSabado"
     ];
 
-    public LicaoAdulto(IHttpClientFactory httpClientFactory)
+    public LicaoAdulto(HttpClient? client = null)
     {
-        _httpClientFactory = httpClientFactory;
+        _client = client ?? new HttpClient();
     }
 
     /*
@@ -260,8 +260,7 @@ public class LicaoAdulto
 
     private async Task<IDocument> GetDocumentInternalAsync(string? url = null)
     {
-        var client = _httpClientFactory.CreateClient();
-        var html = await client.GetStringAsync(url ?? Url);
+        var html = await _client.GetStringAsync(url ?? Url);
         var context = BrowsingContext.New(Configuration.Default);
         return await context.OpenAsync(req => req.Content(html));
     }
@@ -274,7 +273,7 @@ public class LicaoAdulto
         return (titulo, conteudo);
     }
 
-    private string GetDiaSemana(int index)
+    private static string GetDiaSemana(int index)
     {
         return index switch
         {
@@ -333,13 +332,7 @@ public class LicaoAdulto
     private async Task<LicaoAuxiliarDTO> GetLessonAuxiliarInternal(LicaoAdultoSemana licaoSemana)
     {
         var document = await GetDocumentAsync(licaoSemana.Link);
-        var aux = document.QuerySelector("#licaoAuxiliar");
-
-        if (aux == null)
-        {
-            throw new Exception("Lição auxiliar não encontrada.");
-        }
-
+        var aux = document.QuerySelector("#licaoAuxiliar") ?? throw new Exception("Lição auxiliar não encontrada.");
         var number = aux.QuerySelector(".descriptionText .numberLicao .numberLicaoAuxiliar")?.TextContent?.Trim();
         var title = aux.QuerySelector(".titleLicao .titleLicaoAuxiliar")?.TextContent?.Trim();
         var content = aux.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
@@ -363,13 +356,7 @@ public class LicaoAdulto
     private async Task<LicaoInformativoDTO> GetLessonInformativoInternal(LicaoAdultoSemana licaoSemana)
     {
         var document = await GetDocumentAsync(licaoSemana.Link);
-        var info = document.QuerySelector("#licaoInformativo");
-
-        if (info == null)
-        {
-            throw new Exception("Informativo não encontrado.");
-        }
-
+        var info = document.QuerySelector("#licaoInformativo") ?? throw new Exception("Informativo não encontrado.");
         var content = info.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
 
         return new LicaoInformativoDTO(content);

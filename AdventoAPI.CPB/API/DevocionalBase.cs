@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace AdventoAPI.CPB.API;
 
-public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
+public abstract partial class DevocionalBase(HttpClient? client = null)
 {
     public abstract string BaseUrl { get; }
     public abstract string MeditacoesUrl { get; }
@@ -66,7 +66,6 @@ public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
         return resultados;
     }
 
-    // New: fetch a specific devotional page using the provided url
     public async Task<DevocionalInfo> GetDevocional(string url)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
@@ -74,7 +73,6 @@ public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
 
         var document = await GetDocumentAsync(url);
 
-        // Selectors (try both descendant and combined-class forms)
         string? diaNome = document.QuerySelector(".descriptionText.diaSemanaMeditacao")?.TextContent?.Trim()
             ?? "";
 
@@ -99,16 +97,15 @@ public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
 
     private async Task<IDocument> GetDocumentAsync(string? url = null)
     {
-        var client = httpClientFactory.CreateClient();
+        client ??= new HttpClient();
         var html = await client.GetStringAsync(url ?? BaseUrl);
         var context = BrowsingContext.New(Configuration.Default);
         return await context.OpenAsync(req => req.Content(html));
     }
 
-    private (DateOnly DataInicio, DateOnly DataFinal, int NumberMeditacaoes) ParseHeader(string text)
+    private static (DateOnly DataInicio, DateOnly DataFinal, int NumberMeditacaoes) ParseHeader(string text)
     {
-        // Expected format: "17/mai – 23/mai (2 meditações)"
-        var match = Regex.Match(text, @"(\d{1,2}/\w{3})\s*–\s*(\d{1,2}/\w{3})\s*\((\d+)\s*meditações\)");
+        var match = ParserHeaderRegex().Match(text);
 
         if (!match.Success)
             throw new FormatException($"Invalid header format: {text}");
@@ -120,13 +117,13 @@ public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
         );
     }
 
-    private DateOnly ParseDate(string? dateText)
+    private static DateOnly ParseDate(string? dateText)
     {
+        
         if (string.IsNullOrWhiteSpace(dateText))
             throw new ArgumentException("Date text cannot be null or empty");
 
-        // Remove day of week prefix if present (e.g., "Sáb 16/mai" -> "16/mai")
-        var cleanDate = Regex.Replace(dateText, @"^\w{3}\s+", "");
+        var cleanDate = ParserDataRegex().Replace(dateText, "");
 
         var parts = cleanDate.Split('/');
         if (parts.Length != 2)
@@ -152,7 +149,11 @@ public abstract class DevocionalBase(IHttpClientFactory httpClientFactory)
             _ => throw new FormatException($"Unknown month abbreviation: {monthAbbr}")
         };
 
-        // Use current year as the URL is for the current year
         return new DateOnly(DateTime.Now.Year, month, day);
     }
+
+    [GeneratedRegex(@"(\d{1,2}/\w{3})\s*–\s*(\d{1,2}/\w{3})\s*\((\d+)\s*meditações\)")]
+    private static partial Regex ParserHeaderRegex();
+    [GeneratedRegex(@"^\w{3}\s+")]
+    private static partial Regex ParserDataRegex();
 }

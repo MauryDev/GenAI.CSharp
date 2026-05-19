@@ -1,7 +1,7 @@
 ﻿namespace AdventoAPI.CPB.API;
 
 
-public class DevocionalDiario(IHttpClientFactory httpClientFactory) : DevocionalBase(httpClientFactory)
+public class DevocionalDiario(HttpClient? client = null) : DevocionalBase(client)
 {
 
     public override string BaseUrl => "https://mais.cpb.com.br/devocional-diario-ano/";
