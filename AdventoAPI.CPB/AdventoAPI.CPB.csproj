@@ -9,6 +9,8 @@
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/MauryDev/GenAI.CSharp</RepositoryUrl>
+    <PackageTags>cpb api</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
