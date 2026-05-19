@@ -117,14 +117,5 @@ public class LicaoSkills
     {
         return await licaoService.GetWeekLessonInformativo(weekIndex);
     }
-    [McpServerTool, Description("Echoes the input back to the client.")]
-    public static CallToolResult Echo(string message)
-    {
-        string responseText = "hello " + message;
-
-        return new CallToolResult
-        {
-            Content = [new TextContentBlock() { Text= responseText }]
-        };
-    }
+    
 }
