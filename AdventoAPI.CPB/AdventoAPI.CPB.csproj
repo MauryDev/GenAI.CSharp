@@ -5,12 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Title>AdventoAPI.CPB</Title>
-    <Company>MauryDev</Company>
+    <Company>$(Authors)</Company>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/MauryDev/GenAI.CSharp</RepositoryUrl>
     <PackageTags>cpb api</PackageTags>
+    <VersionPrefix>1.0.1</VersionPrefix>
+    <Authors>MauryDev</Authors>
   </PropertyGroup>
 
   <ItemGroup>
