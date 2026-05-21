@@ -2,11 +2,12 @@
 using AdventoAPI.CPB.Utils; // LINQ normal
 using AngleSharp;
 using AngleSharp.Dom;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace AdventoAPI.CPB.API;
 
-public abstract partial class DevocionalBase(HttpClient? customClient = null)
+public abstract partial class DevocionalBase(HttpClient? client = null, DevocionalOptions? options = null)
 {
     private static readonly HttpClient _sharedClient = new(new SocketsHttpHandler
     {
@@ -14,26 +15,21 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
 
         PooledConnectionLifetime = TimeSpan.FromMinutes(15)
     });
-    public abstract string BaseUrl { get; }
-    public abstract string MeditacoesUrl { get; }
-    private readonly HttpClient _client = customClient ?? _sharedClient;
+
+    public DevocionalOptions Options { get; set; } = options ?? DevocionalOptions.Default;
+
+    private readonly HttpClient _client = client ?? _sharedClient;
 
     public async Task<List<DevocionalSemanaBloco>> GetDevocionaisAsync(CancellationToken cancellation = default)
     {
-        var document = await GetDocumentAsync(null, cancellation);
+        var document = await GetDocumentAsync(Options.BaseUrl, cancellation);
 
-        return [.. document.QuerySelectorAll(".semana-bloco")
-            .Select(blocoElement => new
-            {
-                Element = blocoElement,
-                HeaderText = blocoElement.QuerySelector(".semana-header span")?.TextContent?.Trim()
-            })
-            .Where(bloco => !string.IsNullOrEmpty(bloco.HeaderText))
-            .Select(bloco =>
-            {
-                var headerInfo = ParseHeader(bloco.HeaderText!);
+        return [.. document.QuerySelectorAll(Options.SemanaBlocoSelector)
+            .Select(blocoElement => {
+                var header = blocoElement.QuerySelector(Options.HeaderSelector)?.TextContent?.Trim();
+                var headerInfo = header != null ? ParseHeader(header!) : null;
 
-                var dias = bloco.Element.QuerySelectorAll(".semana-body .dias-lista .dia-item a")
+                var dias = blocoElement.QuerySelectorAll(Options.DiasListaSelector)
                     .Select(diaElem => new DevocionalDiaInfo(
                         Data: ParseDate(diaElem.TextContent?.Trim()),
                         Titulo: diaElem.GetAttribute("title") ?? string.Empty,
@@ -42,29 +38,29 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
                     .ToList();
 
                 return new DevocionalSemanaBloco(
-                    headerInfo.DataInicio,
-                    headerInfo.DataFinal,
-                    headerInfo.NumberMeditacaoes,
+                    headerInfo?.DataInicio,
+                    headerInfo?.DataFinal,
+                    headerInfo?.NumberMeditacaoes ?? 0,
                     dias
                 );
             })
         ];
     }
 
-    
+
 
     public async Task<List<MeditacaoInfo>> GetMeditacaoInfoAsync(CancellationToken cancellation = default)
     {
-        var document = await GetDocumentAsync(MeditacoesUrl, cancellation);
-        var cards = document.QuerySelectorAll(".cpbCards");
+        var document = await GetDocumentAsync(Options.MeditacoesUrl, cancellation);
+        var cards = document.QuerySelectorAll(Options.CardSelector);
         return [.. cards.Select(card => new MeditacaoInfo(
-                Title : card.QuerySelector(".mediaCardTitle")?.TextContent?.Trim() ?? string.Empty,
-                Description : card.QuerySelector(".mdl-card__supporting-text")?.TextContent?.Trim() ?? string.Empty
+                Title : card.QuerySelector(Options.TitleSelector)?.TextContent?.Trim() ?? string.Empty,
+                Description : card.QuerySelector(Options.DescriptionSelector)?.TextContent?.Trim() ?? string.Empty
             ))
             .Where(cardData => !string.IsNullOrEmpty(cardData.Title))
         ];
 
-       
+
     }
 
     public async Task<DevocionalInfo> GetDevocional(string url, CancellationToken cancellation = default)
@@ -74,17 +70,17 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
 
         var document = await GetDocumentAsync(url, cancellation);
 
-        string? diaNome = document.QuerySelector(".descriptionText.diaSemanaMeditacao")?.TextContent?.Trim()
+        string? diaNome = document.QuerySelector(Options.DiaSemanaSelector)?.TextContent?.Trim()
             ?? "";
 
-        string? diaMesNome = document.QuerySelector(".descriptionText.diaMesMeditacao")?.TextContent?.Trim()
+        string? diaMesNome = document.QuerySelector(Options.DiaMesSelector)?.TextContent?.Trim()
             ?? "";
 
-        string? versoBiblico = document.QuerySelector(".descriptionText.versoBiblico")?.TextContent?.Trim()
+        string? versoBiblico = document.QuerySelector(Options.VersoBiblicoSelector)?.TextContent?.Trim()
           ?? "";
 
-        string? title = document.QuerySelector(".titleMeditacao")?.TextContent?.Trim();
-        string? content = document.QuerySelector(".conteudoMeditacao")?.TextContent?.Trim();
+        string? title = document.QuerySelector(Options.MeditacaoTitleSelector)?.TextContent?.Trim();
+        string? content = document.QuerySelector(Options.ContentSelector)?.TextContent?.Trim();
 
         return new(
             Url: url,
@@ -104,15 +100,36 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
     public async Task<List<DevocionalInfo>> BuscarPalavrasChaveDevocionais(IEnumerable<string> palavras, CancellationToken cancellationToken = default)
     {
         var blocos = await GetDevocionaisAsync(cancellationToken);
-        var val = await blocos.SelectMany(bloco => bloco.Dias)
-            .ToAsyncEnumerable()
-            .Select((DevocionalDiaInfo dia, CancellationToken cancellationToken) => GetDevocional(dia.Href, cancellationToken).AsValueTask())
-            .Where(info => info.Content != null 
-                && palavras.Any(palavra => info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase))
-            )
-            .ToListAsync(cancellationToken);
-      
-        return val;
+        using var semaphore = new SemaphoreSlim(5);
+        var tarefas = blocos.SelectMany(bloco => bloco.Dias)
+            .Select(async dia =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    var info = await GetDevocional(dia.Href, cancellationToken);
+                    if (info.Content != null && palavras.Any(palavra => info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return info;
+                    }
+                    return null;
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            })
+            .ToArray();
+
+
+
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+        return await Task.WhenEach(tarefas).Select((e, i, token) => e.AsValueTask())
+            .Where(r => r != null).ToListAsync(cancellationToken);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+
+
+
     }
 
     public async Task<List<DevocionalInfo>> BuscarPalavraChaveSemana(int semanaIndex, string palavra, CancellationToken cancellationToken = default)
@@ -127,41 +144,85 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
         {
             return [];
         }
+        using var semaphore = new SemaphoreSlim(5);
 
-        return await blocos.OrderBy(e => e.DataFinal)
-            .ElementAt(semanaIndex)
-            .Dias.ToAsyncEnumerable()
-            .Select((DevocionalDiaInfo dia, CancellationToken cancellationToken) => GetDevocional(dia.Href, cancellationToken).AsValueTask())
-            .Where(info => info.Content != null 
-                && palavras.Any(palavra => info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase))
-            )
-            .ToListAsync(cancellationToken);
 
-        
+        var step1 = blocos.OrderBy(e => e.DataFinal)
+            .ElementAt(semanaIndex).Dias
+            .Select(async (DevocionalDiaInfo dia) =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    return await GetDevocional(dia.Href, cancellationToken);
+
+                }
+                catch (OperationCanceledException)
+                {
+                    return null;
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            })
+            .ToArray();
+
+
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+        return await Task.WhenEach(step1).Select((e, i, token) => e.AsValueTask())
+            .Where(info => info != null).ToListAsync(cancellationToken);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+
+
+
     }
 
     public async Task<List<DevocionalInfo>> BuscarPalavraChaveDataRange(DevocionalDayMonth dataInicio, DevocionalDayMonth dataFim, string palavra, CancellationToken cancellationToken = default)
     {
-        return await BuscarPalavrasChaveDataRange(dataInicio,dataFim, palavra.ToSingleIEnumerable(), cancellationToken);
+        return await BuscarPalavrasChaveDataRange(dataInicio, dataFim, palavra.ToSingleIEnumerable(), cancellationToken);
     }
 
     public async Task<List<DevocionalInfo>> BuscarPalavrasChaveDataRange(DevocionalDayMonth dataInicio, DevocionalDayMonth dataFim, IEnumerable<string> palavras, CancellationToken cancellationToken = default)
     {
+        using var semaphore = new SemaphoreSlim(5);
+
         var blocos = await GetDevocionaisAsync(cancellationToken);
-        return await blocos
+
+        var step1 = blocos
             .Where(bloco => bloco.DataFinal <= dataFim || bloco.DataInicio >= dataInicio)
             .SelectMany(bloco => bloco.Dias)
             .Where(dia => dia.Data >= dataInicio && dia.Data <= dataFim)
-            .ToAsyncEnumerable()
-            .Select((DevocionalDiaInfo dia, CancellationToken cancelToken) =>  GetDevocional(dia.Href, cancelToken).AsValueTask())
-            .Where(info => info?.Content != null && palavras.Any(palavra => info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase)))
+            .Select(async (DevocionalDiaInfo dia) =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    return await GetDevocional(dia.Href, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return null;
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            })
+            .ToArray();
+
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+        return await Task.WhenEach(step1).Select((e, i, token) => e.AsValueTask())
+            .Where(info => info != null && palavras.Any(palavra => info.Content != null && info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase)))
             .ToListAsync(cancellationToken);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+
     }
 
-    private async Task<IDocument> GetDocumentAsync(string? url = null, CancellationToken cancellation = default)
+    private async Task<IDocument> GetDocumentAsync(string url, CancellationToken cancellation = default)
     {
-        
-        var html = await _client.GetStringAsync(url ?? BaseUrl, cancellation);
+
+        var html = await _client.GetStringAsync(url, cancellation);
         var context = BrowsingContext.New(Configuration.Default);
         return await context.OpenAsync(req => req.Content(html), cancellation);
     }
@@ -187,37 +248,18 @@ public abstract partial class DevocionalBase(HttpClient? customClient = null)
 
     private static DevocionalDayMonth ParseDate(string? dateText)
     {
-        
+
         if (string.IsNullOrWhiteSpace(dateText))
             throw new ArgumentException("Date text cannot be null or empty");
 
         var cleanDate = ParserDataRegex().Replace(dateText, "");
 
-        var parts = cleanDate.Split('/');
-        if (parts.Length != 2)
-            throw new FormatException($"Invalid date format: {dateText}");
-
-        int day = int.Parse(parts[0]);
-        string monthAbbr = parts[1].ToLower();
-
-        int month = monthAbbr switch
+        if (!DateTime.TryParseExact(cleanDate, "d/MMM", CultureCustomPtBR.PtBrCulture, DateTimeStyles.None, out var parsedDate))
         {
-            "jan" => 1,
-            "fev" => 2,
-            "mar" => 3,
-            "abr" => 4,
-            "mai" => 5,
-            "jun" => 6,
-            "jul" => 7,
-            "ago" => 8,
-            "set" => 9,
-            "out" => 10,
-            "nov" => 11,
-            "dez" => 12,
-            _ => throw new FormatException($"Unknown month abbreviation: {monthAbbr}")
-        };
+            throw new FormatException($"Invalid date format: {dateText}");
+        }
 
-        return new DevocionalDayMonth(month, day);
+        return new DevocionalDayMonth(parsedDate.Month, parsedDate.Day);
     }
 
     [GeneratedRegex(@"(\d{1,2}/\w{3})\s*–\s*(\d{1,2}/\w{3})\s*\((\d+)\s*meditações\)")]

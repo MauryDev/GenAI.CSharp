@@ -17,9 +17,9 @@ namespace GenAI.CSharp.Services
         }
         public static IMcpServerBuilder AddGenAiTools(this IMcpServerBuilder mcpServerBuilder)
         {
-            return mcpServerBuilder.WithTools<Tools.LicaoAdultoSkills>()
-                .WithTools<Tools.DevocionalDiarioSkills>()
-                .WithTools<Tools.DevocionalJovemSkills>()
+            return mcpServerBuilder.WithTools<LicaoAdultoSkills>()
+                .WithTools<DevocionalDiarioSkills>()
+                .WithTools<DevocionalJovemSkills>()
                 .WithTools<DevocionalMulherSkills>();
 
         }

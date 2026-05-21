@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace AdventoAPI.CPB.API;
 
-public class LicaoAdulto(HttpClient? client = null)
+public class LicaoAdulto(HttpClient? client = null, LicaoAdultoOptions? options = null)
 {
     private static readonly HttpClient _sharedClient = new(new SocketsHttpHandler
     {
@@ -16,12 +16,7 @@ public class LicaoAdulto(HttpClient? client = null)
     });
 
     private readonly HttpClient _client = client ?? _sharedClient;
-
-
-    private static readonly string[] DiasSemanaIds =
-    [
-        "licaoDomingo", "licaoSegunda", "licaoTerca", "licaoQuarta", "licaoQuinta", "licaoSexta", "licaoSabado"
-    ];
+    private readonly LicaoAdultoOptions _options = options ?? LicaoAdultoOptions.Default;
 
     /*
     |-------------------------------------------------------------------------- 
@@ -38,10 +33,10 @@ public class LicaoAdulto(HttpClient? client = null)
     private async Task<LicaoAdultoDay> GetSabadoInternal(LicaoAdultoSemana licaosemana, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var sabado = document.QuerySelector("div#licaoSabado") ?? throw new InvalidOperationException("Conteúdo de sábado não encontrado.");
-        var conteudo = sabado.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
-        var titulo = sabado.QuerySelector(".titleLicao")?.TextContent?.Trim();
-        var versoMemorizar = sabado.QuerySelector(".versoMemorizar")?.TextContent?.Trim();
+        var sabado = document.QuerySelector(_options.SabadoSelector) ?? throw new InvalidOperationException("Conteúdo de sábado não encontrado.");
+        var conteudo = sabado.QuerySelector(_options.ConteudoLicaoDiaSelector)?.TextContent?.Trim();
+        var titulo = sabado.QuerySelector(_options.TitleLicaoSelector)?.TextContent?.Trim();
+        var versoMemorizar = sabado.QuerySelector(_options.VersoMemorizarSelector)?.TextContent?.Trim();
 
         return new LicaoAdultoDay
         (
@@ -72,13 +67,13 @@ public class LicaoAdulto(HttpClient? client = null)
         }
 
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var elemento = document.QuerySelector($"div#{DiasSemanaIds[diaSemana]}");
+        var elemento = document.QuerySelector($"div#{_options.DiasSemanaIds[diaSemana]}");
         var (titulo, conteudo) = ExtractLicaoInfo(elemento);
 
         return new LicaoAdultoDay(
-            DiaSemana : GetDiaSemana(diaSemana),
-            Titulo : titulo,
-            Conteudo : conteudo,
+            DiaSemana: GetDiaSemana(diaSemana),
+            Titulo: titulo,
+            Conteudo: conteudo,
             VersoParaMemorizar: null
 
         );
@@ -88,9 +83,9 @@ public class LicaoAdulto(HttpClient? client = null)
     {
         var licaosemana = await GetLicaoSemana(cancellationToken);
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var selecionadoDia = document.QuerySelector("a.is-active");
+        var selecionadoDia = document.QuerySelector(_options.ActiveDaySelector);
         var href = selecionadoDia?.GetAttribute("href");
-        var versoMemorizar = selecionadoDia.QuerySelector(".versoMemorizar")?.TextContent?.Trim();
+        var versoMemorizar = selecionadoDia?.QuerySelector(_options.VersoMemorizarSelector)?.TextContent?.Trim();
 
         if (string.IsNullOrWhiteSpace(href))
         {
@@ -98,7 +93,7 @@ public class LicaoAdulto(HttpClient? client = null)
         }
 
         var id = href.TrimStart('#');
-        var index = Array.IndexOf(DiasSemanaIds, id);
+        var index = Array.IndexOf(_options.DiasSemanaIds, id);
 
         var elemento = document.QuerySelector($"div{href}");
         var (titulo, conteudo) = ExtractLicaoInfo(elemento);
@@ -127,14 +122,14 @@ public class LicaoAdulto(HttpClient? client = null)
     private async Task<LicaoTemasResponse> GetWeekTodosTemasInternal(LicaoAdultoSemana licaosemana, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var temas = document.QuerySelectorAll(".titleLicaoDay")
+        var temas = document.QuerySelectorAll(_options.TitleLicaoDaySelector)
             .Select((e, index) => new LicaoTemaDTO(
                 GetDiaSemana(index),
                 e.TextContent?.Trim()
             ))
             .Append(new LicaoTemaDTO(
                 GetDiaSemana(6),
-                document.QuerySelector(".titleLicao")?.Text()
+                document.QuerySelector(_options.TitleLicaoSelector)?.Text()
             )
         );
 
@@ -156,7 +151,7 @@ public class LicaoAdulto(HttpClient? client = null)
     private async Task<LicaoVersoMemorizarDTO> GetWeekVersoMemorizarInternal(LicaoAdultoSemana licaosemana, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var verso = document.QuerySelector("div#licaoSabado .versoMemorizar")?.TextContent?.Trim();
+        var verso = document.QuerySelector($"{_options.SabadoSelector} {_options.VersoMemorizarSelector}")?.TextContent?.Trim();
         return new LicaoVersoMemorizarDTO(verso);
     }
 
@@ -180,15 +175,15 @@ public class LicaoAdulto(HttpClient? client = null)
 
     private async Task<LicaoBuscaResponse> GetWeekBuscarPalavraChaveInternal(LicaoAdultoSemana licaosemana, string palavra, CancellationToken cancellationToken = default)
     {
-        
-        return await GetWeekBuscarPalavrasChaveInternal(licaosemana, palavra.ToSingleIEnumerable(), cancellationToken); 
+
+        return await GetWeekBuscarPalavrasChaveInternal(licaosemana, palavra.ToSingleIEnumerable(), cancellationToken);
     }
 
 
     private async Task<LicaoBuscaResponse> GetWeekBuscarPalavrasChaveInternal(LicaoAdultoSemana licaosemana, IEnumerable<string> palavras, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var resultados = DiasSemanaIds
+        var resultados = _options.DiasSemanaIds
             .Select((id, i) =>
             {
                 var elemento = document.QuerySelector($"div#{id}");
@@ -199,37 +194,35 @@ public class LicaoAdulto(HttpClient? client = null)
                 && palavras.Any(p => licaoInfo.Conteudo.Contains(p, StringComparison.OrdinalIgnoreCase))
             )
             .ToList();
-       
+
 
         return new LicaoBuscaResponse(resultados);
     }
     public async Task<LicaoAdultoSemana> GetLicaoSemana(CancellationToken cancellationToken = default)
     {
-        const string licaoSemanaUrl = "https://mais.cpb.com.br/licao-adultos/";
-        var document = await GetDocumentAsync(licaoSemanaUrl, cancellationToken);
-        var licaoCorrente = document.QuerySelector("licao-corrente")?.TextContent?.Trim();
+        var document = await GetDocumentAsync(_options.BaseUrl, cancellationToken);
+        var licaoCorrente = document.QuerySelector(_options.LicaoCorrenteSelector)?.TextContent?.Trim();
 
         return JsonSerializer.Deserialize<LicaoAdultoSemana[]>(licaoCorrente)[0];
     }
     public async Task<LicaoAdultoSemana[]> GetLicoesTrimestre(CancellationToken cancellationToken = default)
     {
-        const string licaoSemanaUrl = "https://mais.cpb.com.br/licao-adultos/";
-        var document = await GetDocumentAsync(licaoSemanaUrl, cancellationToken);
-        var licaoCorrente = document.QuerySelectorAll(".licoes")[1]?.TextContent?.Trim();
+        var document = await GetDocumentAsync(_options.BaseUrl, cancellationToken);
+        var licaoCorrente = document.QuerySelectorAll(_options.LicoesSelector)[1]?.TextContent?.Trim();
 
         return JsonSerializer.Deserialize<LicaoAdultoSemana[]>(licaoCorrente);
     }
 
     public async Task<LicaoAdultoSemana> GetLicaoSemanaByIndex(int index, CancellationToken cancellationToken = default)
     {
-        
+
 
         return (await GetLicoesTrimestre(cancellationToken))[index - 1];
     }
 
 
 
-    
+
 
     public async Task<LicaoBuscaTrimestreResponse> BuscarPalavraChaveTrimestre(string palavra, CancellationToken cancellationToken = default)
     {
@@ -247,7 +240,7 @@ public class LicaoAdulto(HttpClient? client = null)
             var licaoSemana = licoes[i];
             var document = await GetDocumentAsync(licaoSemana.Link, cancellationToken);
             var numeroSemana = i + 1;
-            return DiasSemanaIds.Select((id, j) =>
+            return _options.DiasSemanaIds.Select((id, j) =>
             {
                 var elemento = document.QuerySelector($"div#{id}");
                 var (titulo, conteudo) = ExtractLicaoInfo(elemento);
@@ -282,10 +275,10 @@ public class LicaoAdulto(HttpClient? client = null)
     private async Task<LicaoAuxiliarDTO> GetLessonAuxiliarInternal(LicaoAdultoSemana licaoSemana, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaoSemana.Link, cancellationToken);
-        var aux = document.QuerySelector("#licaoAuxiliar") ?? throw new Exception("Lição auxiliar não encontrada.");
-        var number = aux.QuerySelector(".descriptionText .numberLicao .numberLicaoAuxiliar")?.TextContent?.Trim();
-        var title = aux.QuerySelector(".titleLicao .titleLicaoAuxiliar")?.TextContent?.Trim();
-        var content = aux.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
+        var aux = document.QuerySelector(_options.LicaoAuxiliarSelector) ?? throw new Exception("Lição auxiliar não encontrada.");
+        var number = aux.QuerySelector(_options.LicaoAuxiliarNumberSelector)?.TextContent?.Trim();
+        var title = aux.QuerySelector(_options.LicaoAuxiliarTitleSelector)?.TextContent?.Trim();
+        var content = aux.QuerySelector(_options.ConteudoLicaoDiaSelector)?.TextContent?.Trim();
 
         return new LicaoAuxiliarDTO(number, title, content);
     }
@@ -306,8 +299,8 @@ public class LicaoAdulto(HttpClient? client = null)
     private async Task<LicaoInformativoDTO> GetLessonInformativoInternal(LicaoAdultoSemana licaoSemana, CancellationToken cancellationToken = default)
     {
         var document = await GetDocumentAsync(licaoSemana.Link, cancellationToken);
-        var info = document.QuerySelector("#licaoInformativo") ?? throw new Exception("Informativo não encontrado.");
-        var content = info.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
+        var info = document.QuerySelector(_options.LicaoInformativoSelector) ?? throw new Exception("Informativo não encontrado.");
+        var content = info.QuerySelector(_options.ConteudoLicaoDiaSelector)?.TextContent?.Trim();
 
         return new LicaoInformativoDTO(content);
     }
@@ -332,10 +325,10 @@ public class LicaoAdulto(HttpClient? client = null)
     }
 
 
-    static (string? Titulo, string? Conteudo) ExtractLicaoInfo(IElement? element)
+    (string? Titulo, string? Conteudo) ExtractLicaoInfo(IElement? element)
     {
-        var titulo = element?.QuerySelector(".titleLicaoDay")?.TextContent?.Trim();
-        var conteudo = element?.QuerySelector(".conteudoLicaoDia")?.TextContent?.Trim();
+        var titulo = element?.QuerySelector(_options.TitleLicaoDaySelector)?.TextContent?.Trim();
+        var conteudo = element?.QuerySelector(_options.ConteudoLicaoDiaSelector)?.TextContent?.Trim();
         return (titulo, conteudo);
     }
 
@@ -353,5 +346,5 @@ public class LicaoAdulto(HttpClient? client = null)
             _ => throw new ArgumentOutOfRangeException(nameof(index), "Dia da semana inválido.")
         };
     }
-    
+
 }
