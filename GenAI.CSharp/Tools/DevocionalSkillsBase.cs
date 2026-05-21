@@ -109,8 +109,8 @@ public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
  int endMonth,
  string keyword)
     {
-        var start = new DevocionalDayMonth(startMonth, startDay);
-        var end = new DevocionalDayMonth(endMonth, endDay);
+        var start = new DevocionalDayMonth(startDay, startMonth);
+        var end = new DevocionalDayMonth(endDay, endMonth);
 
         var results = await _devocional.BuscarPalavraChaveDataRange(start, end, keyword);
         return [.. results.Select(c => new DevocionalContentSafe(
@@ -153,8 +153,8 @@ public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
         int endMonth,
         IEnumerable<string> keywords)
     {
-        var start = new DevocionalDayMonth(startMonth, startDay);
-        var end = new DevocionalDayMonth(endMonth, endDay);
+        var start = new DevocionalDayMonth(startDay, startMonth);
+        var end = new DevocionalDayMonth(endDay, endMonth);
 
         var results = await _devocional.BuscarPalavrasChaveDataRange(start, end, keywords);
         return [.. results.Select(c => new DevocionalContentSafe(

@@ -31,7 +31,7 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
 
                 var dias = blocoElement.QuerySelectorAll(Options.DiasListaSelector)
                     .Select(diaElem => new DevocionalDiaInfo(
-                        Data: ParseDate(diaElem.TextContent?.Trim()),
+                        Data: ParseDateCPBStyle(diaElem.TextContent?.Trim()),
                         Titulo: diaElem.GetAttribute("title") ?? string.Empty,
                         Href: diaElem.GetAttribute("href") ?? string.Empty
                     ))
@@ -123,10 +123,11 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
 
 
 
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        return await Task.WhenEach(tarefas).Select((e, i, token) => e.AsValueTask())
-            .Where(r => r != null).ToListAsync(cancellationToken);
-#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+        return await Task.WhenEach(tarefas)
+            .Select((e, i, token) => e.AsValueTask())
+            .Where(r => r != null)
+            .OfType<DevocionalInfo>()
+            .ToListAsync(cancellationToken);
 
 
 
@@ -169,10 +170,11 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
             .ToArray();
 
 
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        return await Task.WhenEach(step1).Select((e, i, token) => e.AsValueTask())
-            .Where(info => info != null).ToListAsync(cancellationToken);
-#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+        return await Task.WhenEach(step1)
+            .Select((e, i, token) => e.AsValueTask())
+            .Where(info => info != null)
+            .OfType<DevocionalInfo>()
+            .ToListAsync(cancellationToken);
 
 
 
@@ -211,11 +213,11 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
             })
             .ToArray();
 
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        return await Task.WhenEach(step1).Select((e, i, token) => e.AsValueTask())
+        return await Task.WhenEach(step1)
+            .Select((e, i, token) => e.AsValueTask())
             .Where(info => info != null && palavras.Any(palavra => info.Content != null && info.Content.Contains(palavra, StringComparison.OrdinalIgnoreCase)))
+            .OfType<DevocionalInfo>()
             .ToListAsync(cancellationToken);
-#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
 
     }
 
@@ -240,26 +242,33 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
             throw new FormatException($"Invalid header format: {text}");
 
         return new(
-            DataInicio: ParseDate(match.Groups[1].Value),
-            DataFinal: ParseDate(match.Groups[2].Value),
+            DataInicio: ParseDateCPBStyle(match.Groups[1].Value),
+            DataFinal: ParseDateCPBStyle(match.Groups[2].Value),
             NumberMeditacaoes: int.Parse(match.Groups[3].Value)
         );
     }
 
-    private static DevocionalDayMonth ParseDate(string? dateText)
+    public static DevocionalDayMonth ParseDateCPBStyle(string? dateText)
     {
 
         if (string.IsNullOrWhiteSpace(dateText))
             throw new ArgumentException("Date text cannot be null or empty");
 
-        var cleanDate = ParserDataRegex().Replace(dateText, "");
+        ReadOnlySpan<char> dateSpan = dateText.AsSpan();
 
-        if (!DateTime.TryParseExact(cleanDate, "d/MMM", CultureCustomPtBR.PtBrCulture, DateTimeStyles.None, out var parsedDate))
+        var enumerator = ParserDataRegex().EnumerateMatches(dateSpan);
+
+        if (enumerator.MoveNext())
+        {
+            dateSpan = dateSpan[enumerator.Current.Length..];
+        }
+
+        if (!DateTime.TryParseExact(dateSpan, "d/MMM", CultureCustomPtBR.PtBrCulture, DateTimeStyles.None, out var parsedDate))
         {
             throw new FormatException($"Invalid date format: {dateText}");
         }
 
-        return new DevocionalDayMonth(parsedDate.Month, parsedDate.Day);
+        return new DevocionalDayMonth(parsedDate.Day, parsedDate.Month);
     }
 
     [GeneratedRegex(@"(\d{1,2}/\w{3})\s*–\s*(\d{1,2}/\w{3})\s*\((\d+)\s*meditações\)")]

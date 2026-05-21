@@ -13,7 +13,7 @@ public record DevocionalDiaInfo(DevocionalDayMonth Data, string Titulo, string H
 public record DevocionalSemanaBloco(DevocionalDayMonth DataInicio, DevocionalDayMonth DataFinal, int NumberMeditacaoes, List<DevocionalDiaInfo> Dias);
 public record MeditacaoInfo(string Title, string Description);
 
-public record DevocionalDayMonth(int Month, int Day) : IComparable<DevocionalDayMonth>
+public record DevocionalDayMonth(int Day, int Month) : IComparable<DevocionalDayMonth>
 {
     public int CompareTo(DevocionalDayMonth? other)
     {
