@@ -1,3 +1,5 @@
+using AdventoAPI.CPB.DTO;
+
 namespace GenAI.CSharp.Models;  
   
-public record DevocionalDiaSafe(DateOnly Data, string Titulo); 
+public record DevocionalDiaSafe(DevocionalDayMonth Data, string Titulo); 

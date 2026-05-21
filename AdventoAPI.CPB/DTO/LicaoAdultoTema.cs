@@ -1,1 +1,0 @@
-public record LicaoAdultoTema(string Dia, string Tema);

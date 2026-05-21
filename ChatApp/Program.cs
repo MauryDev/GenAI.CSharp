@@ -4,6 +4,7 @@ using ChatApp.Repositories;
 using ChatApp.Services;
 using DotNetEnv;
 using GenAI.CSharp.Services;
+using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -19,9 +20,13 @@ builder.WebHost.UseUrls("http://0.0.0.0:5028", "https://0.0.0.0:7002");
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddScoped(sp => new HttpClient
-{
-    BaseAddress = new Uri("http://localhost:5028")
+builder.Services.AddScoped(sp => {
+    var navManager = sp.GetRequiredService<NavigationManager>();
+    return new HttpClient
+    {
+        BaseAddress = new Uri(navManager.BaseUri)
+    };
+
 });
 
 builder.Services.AddMudServices();
@@ -45,10 +50,16 @@ builder.Services
 
 builder.Services.AddScoped(sp =>
 {
-    var transport = new HttpClientTransport(new ()
+    var navManager = sp.GetRequiredService<NavigationManager>();
+
+    // Constrói a URL do MCP baseada na URL atual do aplicativo
+    var mcpEndpoint = new Uri(new Uri(navManager.BaseUri), "mcp");
+
+    var transport = new HttpClientTransport(new()
     {
-        Endpoint = new Uri("http://localhost:5028/mcp")
+        Endpoint = mcpEndpoint
     });
+
     var options = new McpClientOptions
     {
         Capabilities = new ClientCapabilities
@@ -56,6 +67,7 @@ builder.Services.AddScoped(sp =>
             Sampling = new()
         }
     };
+
     return McpClient.CreateAsync(transport, options).GetAwaiter().GetResult();
 });
 
