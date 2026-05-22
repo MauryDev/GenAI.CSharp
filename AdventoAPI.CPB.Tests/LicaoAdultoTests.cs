@@ -12,7 +12,7 @@ public sealed class LicaoAdultoTests
     public async Task GetSabado_DeveRetornarObjetoValido()
     {
         // Arrange & Act
-        var resultado = await _service.GetSabado();
+        var resultado = await _service.GetSabado(TestContext.CancellationToken);
 
         // Assert
         Assert.IsNotNull(resultado);
@@ -30,7 +30,7 @@ public sealed class LicaoAdultoTests
         }
         catch (KeyNotFoundException)
         {
-            Assert.IsTrue(true, "Dia atual não encontrado fora do período letivo.");
+            Assert.Fail("Dia atual não encontrado fora do período letivo.");
         }
     }
 
@@ -38,7 +38,7 @@ public sealed class LicaoAdultoTests
     public async Task GetLicoesTrimestre_DeveRetornarListaNaoVazia()
     {
         // Arrange & Act
-        var licoes = await _service.GetLicoesTrimestre();
+        var licoes = await _service.GetLicoesTrimestre(TestContext.CancellationToken);
 
         // Assert
         Assert.IsNotEmpty(licoes);
@@ -48,10 +48,10 @@ public sealed class LicaoAdultoTests
     public async Task GetLicaoByDiaSemana_DeveRetornarDadosParaDomingo()
     {
         // Arrange (0 = Domingo)
-        int dia = 0;
+        const int dia = 0;
 
         // Act
-        var resultado = await _service.GetLicaoByDiaSemana(dia);
+        var resultado = await _service.GetLicaoByDiaSemana(dia, TestContext.CancellationToken);
 
         // Assert
         Assert.AreEqual("Domingo", resultado.DiaSemana);
@@ -62,12 +62,14 @@ public sealed class LicaoAdultoTests
     public async Task BuscarPalavraChaveTrimestre_DeveRetornarResultadosParaTermoExistente()
     {
         // Arrange
-        var termo = "Deus";
+        const string termo = "Deus";
 
         // Act
-        var resultado = await _service.BuscarPalavraChaveTrimestre(termo);
+        var resultado = await _service.BuscarPalavraChaveTrimestre(termo, TestContext.CancellationToken);
 
         // Assert
         Assert.IsNotNull(resultado.Resultados);
     }
+
+    public TestContext TestContext { get; set; }
 }

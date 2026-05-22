@@ -159,7 +159,7 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
             {
                 semaphore.Release();
             }
-        }).ToArray();
+        });
 
         return await Task.WhenEach(tarefas)
             .Select((e, i, token) => e.AsValueTask())
