@@ -182,20 +182,9 @@ public class LicaoAdulto(HttpClient? client = null, LicaoAdultoOptions? options 
 
     private async Task<LicaoBuscaResponse> GetWeekBuscarPalavrasChaveInternal(LicaoAdultoSemana licaosemana, IEnumerable<string> palavras, CancellationToken cancellationToken = default)
     {
+
         var document = await GetDocumentAsync(licaosemana.Link, cancellationToken);
-        var resultados = _options.DiasSemanaIds
-            .Select((id, i) =>
-            {
-                var elemento = document.QuerySelector($"div#{id}");
-                var (titulo, conteudo) = ExtractLicaoInfo(elemento);
-                return new LicaoBuscaResultado(GetDiaSemana(i), titulo, conteudo);
-            })
-            .Where(licaoInfo => licaoInfo.Conteudo != null
-                && palavras.Any(p => licaoInfo.Conteudo.Contains(p, StringComparison.OrdinalIgnoreCase))
-            )
-            .ToList();
-
-
+        var resultados = ProcessarDocumentoLicao(document, palavras).ToList();
         return new LicaoBuscaResponse(resultados);
     }
     public async Task<LicaoAdultoSemana> GetLicaoSemana(CancellationToken cancellationToken = default)
@@ -235,28 +224,31 @@ public class LicaoAdulto(HttpClient? client = null, LicaoAdultoOptions? options 
         var licoes = await GetLicoesTrimestre(cancellationToken);
 
         var todosResultados = await licoes.ToAsyncEnumerable()
-            .SelectMany(async (licao, i, cancellationToken) =>
-        {
-            var licaoSemana = licoes[i];
-            var document = await GetDocumentAsync(licaoSemana.Link, cancellationToken);
-            var numeroSemana = i + 1;
-            return _options.DiasSemanaIds.Select((id, j) =>
+            .SelectMany(async (licao, i, ct) =>
+            {
+                var document = await GetDocumentAsync(licao.Link, ct);
+                var numeroSemana = i + 1;
+
+                return ProcessarDocumentoLicao(document, palavras)
+                    .Select(res => new LicaoBuscaTrimestreResultado(numeroSemana, res.Dia, res.Titulo, res.Conteudo));
+            })
+            .ToListAsync(cancellationToken);
+
+        return new LicaoBuscaTrimestreResponse(todosResultados);
+    }
+
+    private IEnumerable<LicaoBuscaResultado> ProcessarDocumentoLicao(IDocument document, IEnumerable<string> palavras)
+    {
+        return _options.DiasSemanaIds
+            .Select((id, i) =>
             {
                 var elemento = document.QuerySelector($"div#{id}");
                 var (titulo, conteudo) = ExtractLicaoInfo(elemento);
-                return new LicaoBuscaTrimestreResultado(
-                        numeroSemana,
-                        GetDiaSemana(j),
-                        titulo,
-                        conteudo);
+                return new LicaoBuscaResultado(GetDiaSemana(i), titulo, conteudo);
             })
-            .Where(e => e.Conteudo != null
-                && palavras.Any(p => e.Conteudo.Contains(p, StringComparison.OrdinalIgnoreCase))
+            .Where(info => info.Conteudo != null
+                && palavras.Any(p => info.Conteudo.Contains(p, StringComparison.OrdinalIgnoreCase))
             );
-
-        }).ToListAsync(cancellationToken);
-
-        return new LicaoBuscaTrimestreResponse(todosResultados);
     }
 
 
