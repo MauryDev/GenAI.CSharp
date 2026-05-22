@@ -2,6 +2,7 @@
 using AdventoAPI.CPB.Utils;
 using AngleSharp;
 using AngleSharp.Dom;
+using System.Globalization;
 using System.Text.Json;
 
 namespace AdventoAPI.CPB.API;
@@ -219,20 +220,48 @@ public class LicaoAdulto(HttpClient? client = null, LicaoAdultoOptions? options 
         return await BuscarPalavrasChaveTrimestre(palavra.ToSingleIEnumerable(), cancellationToken);
     }
 
-    public async Task<LicaoBuscaTrimestreResponse> BuscarPalavrasChaveTrimestre(IEnumerable<string> palavras, CancellationToken cancellationToken = default)
+  
+
+    public async Task<LicaoBuscaTrimestreResponse> BuscarPalavrasChaveTrimestre(
+    IEnumerable<string> palavras,
+    CancellationToken cancellationToken = default)
     {
         var licoes = await GetLicoesTrimestre(cancellationToken);
 
-        var todosResultados = await licoes.ToAsyncEnumerable()
-            .SelectMany(async (licao, i, ct) =>
+        using var semaphore = new SemaphoreSlim(_options.SemaphoreSlimInitial);
+
+        var tarefas = licoes.Select(async (licao, i) =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+
+            try
             {
-                var document = await GetDocumentAsync(licao.Link, ct);
+                var document = await GetDocumentAsync(
+                    licao.Link,
+                    cancellationToken);
+
                 var numeroSemana = i + 1;
 
                 return ProcessarDocumentoLicao(document, palavras)
-                    .Select(res => new LicaoBuscaTrimestreResultado(numeroSemana, res.Dia, res.Titulo, res.Conteudo));
-            })
-            .ToListAsync(cancellationToken);
+                    .Select(res =>
+                        new LicaoBuscaTrimestreResultado(
+                            numeroSemana,
+                            res.Dia,
+                            res.Titulo,
+                            res.Conteudo))
+                    .ToList();
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        var resultados = await Task.WhenAll(tarefas);
+
+        var todosResultados = resultados
+            .SelectMany(x => x)
+            .ToList();
 
         return new LicaoBuscaTrimestreResponse(todosResultados);
     }
@@ -324,19 +353,19 @@ public class LicaoAdulto(HttpClient? client = null, LicaoAdultoOptions? options 
         return (titulo, conteudo);
     }
 
-    private static string GetDiaSemana(int index)
+    public static string GetDiaSemana(int index)
     {
-        return index switch
-        {
-            0 => "Domingo",
-            1 => "Segunda-feira",
-            2 => "Terça-feira",
-            3 => "Quarta-feira",
-            4 => "Quinta-feira",
-            5 => "Sexta-feira",
-            6 => "Sábado",
-            _ => throw new ArgumentOutOfRangeException(nameof(index), "Dia da semana inválido.")
-        };
+        if (index < 0 || index > 6)
+            throw new ArgumentOutOfRangeException(
+                nameof(index),
+                "Dia da semana inválido.");
+
+        var cultureInfo = CultureInfo.GetCultureInfo("pt-br");
+
+        var ret = cultureInfo.DateTimeFormat
+            .GetDayName((DayOfWeek)index);
+        return cultureInfo.TextInfo.ToTitleCase(ret);
     }
+    
 
 }

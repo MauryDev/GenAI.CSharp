@@ -70,6 +70,14 @@ public sealed class LicaoAdultoTests
         // Assert
         Assert.IsNotNull(resultado.Resultados);
     }
-
+    [TestMethod]
+    public void Testar_GetDiaNome()
+    {
+        var dias = Enumerable.Range(0,7);
+        string[] diasNome = ["Domingo", "Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado"];
+        var names = dias.Select(dia => LicaoAdulto.GetDiaSemana(dia));
+        int i = 0;
+        foreach (var nome in names) Assert.AreEqual(diasNome[i++], nome);
+    }
     public TestContext TestContext { get; set; }
 }

@@ -16,7 +16,9 @@ public record DevocionalOptions(
     string DiaSemanaSelector,
     string DiaMesSelector,
     string VersoBiblicoSelector,
-    string ContentSelector
+    string ContentSelector,
+    int SemaphoreSlimInitial
+
 )
 {
     private static DevocionalOptions CreateWithDefaults(string baseUrl, string meditacoesUrl) => new(
@@ -32,7 +34,8 @@ public record DevocionalOptions(
         DiaSemanaSelector: ".descriptionText.diaSemanaMeditacao",
         DiaMesSelector: ".descriptionText.diaMesMeditacao",
         VersoBiblicoSelector: ".descriptionText.versoBiblico",
-        ContentSelector: ".conteudoMeditacao"
+        ContentSelector: ".conteudoMeditacao",
+        SemaphoreSlimInitial: 5
     );
 
     public static DevocionalOptions Diario => CreateWithDefaults(

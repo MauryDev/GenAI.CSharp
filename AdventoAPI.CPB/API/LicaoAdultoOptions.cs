@@ -14,7 +14,9 @@ public record LicaoAdultoOptions(
     string LicaoAuxiliarSelector,
     string LicaoAuxiliarNumberSelector,
     string LicaoAuxiliarTitleSelector,
-    string LicaoInformativoSelector
+    string LicaoInformativoSelector,
+    int SemaphoreSlimInitial
+
 )
 {
     public static LicaoAdultoOptions Default { get; } = new(
@@ -31,6 +33,7 @@ public record LicaoAdultoOptions(
         LicaoAuxiliarSelector: "#licaoAuxiliar",
         LicaoAuxiliarNumberSelector: ".descriptionText .numberLicao .numberLicaoAuxiliar",
         LicaoAuxiliarTitleSelector: ".titleLicao .titleLicaoAuxiliar",
-        LicaoInformativoSelector: "#licaoInformativo"
+        LicaoInformativoSelector: "#licaoInformativo",
+        SemaphoreSlimInitial: 5
     );
 }

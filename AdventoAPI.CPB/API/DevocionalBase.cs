@@ -146,7 +146,7 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
 
     private async Task<List<DevocionalInfo>> ProcessarDevocionaisAsync(IEnumerable<DevocionalDiaInfo> dias, IEnumerable<string> palavras, CancellationToken cancellationToken)
     {
-        using var semaphore = new SemaphoreSlim(5);
+        using var semaphore = new SemaphoreSlim(Options.SemaphoreSlimInitial);
 
         var tarefas = dias.Select(async dia =>
         {
