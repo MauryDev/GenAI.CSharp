@@ -29,13 +29,13 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
         return [.. document.QuerySelectorAll(Options.SemanaBlocoSelector)
             .Select(blocoElement => {
                 var header = blocoElement.QuerySelector(Options.HeaderSelector)?.TextContent?.Trim();
-                var headerInfo = header != null ? ParseHeader(header!) : null;
+                var headerInfo = header?.ParseHeader();
 
                 var dias = blocoElement.QuerySelectorAll(Options.DiasListaSelector)
                     .Select(diaElem => new DevocionalDiaInfo(
-                        Data: ParseDateCPBStyle(diaElem.TextContent?.Trim()),
+                        Data: diaElem.TextContent?.Trim().ParseDateCPBStyle(),
                         Titulo: diaElem.GetAttribute("title") ?? string.Empty,
-                        Href: diaElem.GetAttribute("href") ?? string.Empty
+                        Href: new Uri(diaElem.GetAttribute("href"))
                     ))
                     .ToList();
 
@@ -65,9 +65,9 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
 
     }
 
-    public async Task<DevocionalInfo> GetDevocional(string url, CancellationToken cancellation = default)
+    public async Task<DevocionalInfo> GetDevocionalDia(Uri url, CancellationToken cancellation = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(url, nameof(url));
+        ArgumentNullException.ThrowIfNull(url, nameof(url));
 
 
         var document = await GetDocumentAsync(url, cancellation);
@@ -94,48 +94,12 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
         );
     }
 
-    public async Task<List<DevocionalInfo>> BuscarPalavraChaveDevocionais(string palavra, CancellationToken cancellationToken = default)
-    {
-        return await BuscarPalavrasChaveDevocionais(palavra.ToSingleIEnumerable(), cancellationToken);
-    }
 
-    public async Task<List<DevocionalInfo>> BuscarPalavrasChaveDevocionais(IEnumerable<string> palavras, CancellationToken cancellationToken = default)
-    {
-        var blocos = await GetDevocionaisAsync(cancellationToken);
-        return await ProcessarDevocionaisAsync(blocos.SelectMany(b => b.Dias), palavras, cancellationToken);
-    }
 
-    public async Task<List<DevocionalInfo>> BuscarPalavraChaveSemana(int semanaIndex, string palavra, CancellationToken cancellationToken = default)
-    {
-        return await BuscarPalavrasChaveSemana(semanaIndex, palavra.ToSingleIEnumerable(), cancellationToken);
-    }
+    private Task<IDocument> GetDocumentAsync(string url, CancellationToken cancellation = default)
+        => GetDocumentAsync(new Uri(url), cancellation);
 
-    public async Task<List<DevocionalInfo>> BuscarPalavrasChaveSemana(int semanaIndex, IEnumerable<string> palavras, CancellationToken cancellationToken = default)
-    {
-        var blocos = await GetDevocionaisAsync(cancellationToken);
-        if (semanaIndex < 0 || semanaIndex >= blocos.Count) return [];
-
-        var dias = blocos.OrderBy(e => e.DataFinal).ElementAt(semanaIndex).Dias;
-        return await ProcessarDevocionaisAsync(dias, palavras, cancellationToken);
-
-    }
-
-    public async Task<List<DevocionalInfo>> BuscarPalavraChaveDataRange(DevocionalDayMonth dataInicio, DevocionalDayMonth dataFim, string palavra, CancellationToken cancellationToken = default)
-    {
-        return await BuscarPalavrasChaveDataRange(dataInicio, dataFim, palavra.ToSingleIEnumerable(), cancellationToken);
-    }
-
-    public async Task<List<DevocionalInfo>> BuscarPalavrasChaveDataRange(DevocionalDayMonth dataInicio, DevocionalDayMonth dataFim, IEnumerable<string> palavras, CancellationToken cancellationToken = default)
-    {
-        var blocos = await GetDevocionaisAsync(cancellationToken);
-        var dias = blocos.Where(b => b.DataFinal <= dataFim && b.DataInicio >= dataInicio)
-                         .SelectMany(b => b.Dias)
-                         .Where(d => d.Data >= dataInicio && d.Data <= dataFim);
-
-        return await ProcessarDevocionaisAsync(dias, palavras, cancellationToken);
-    }
-
-    private async Task<IDocument> GetDocumentAsync(string url, CancellationToken cancellation = default)
+    private async Task<IDocument> GetDocumentAsync(Uri url, CancellationToken cancellation = default)
     {
 
         var html = await _client.GetStringAsync(url, cancellation);
@@ -144,70 +108,7 @@ public abstract partial class DevocionalBase(HttpClient? client = null, Devocion
 
 
 
-    private async Task<List<DevocionalInfo>> ProcessarDevocionaisAsync(IEnumerable<DevocionalDiaInfo> dias, IEnumerable<string> palavras, CancellationToken cancellationToken)
-    {
-        using var semaphore = new SemaphoreSlim(Options.SemaphoreSlimInitial);
+    
 
-        var tarefas = dias.Select(async dia =>
-        {
-            await semaphore.WaitAsync(cancellationToken);
-            try
-            {
-                return await GetDevocional(dia.Href, cancellationToken);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-
-        return await Task.WhenEach(tarefas)
-            .Select((e, i, token) => e.AsValueTask())
-            .Where(info => info != null && palavras.Any(p => info.Content?.Contains(p, StringComparison.OrdinalIgnoreCase) ?? false))
-            .OfType<DevocionalInfo>()
-            .ToListAsync(cancellationToken);
-    }
-
-
-    private static MeditacoesHeader ParseHeader(string text)
-    {
-        var match = ParserHeaderRegex().Match(text);
-
-        if (!match.Success)
-            throw new FormatException($"Invalid header format: {text}");
-
-        return new(
-            DataInicio: ParseDateCPBStyle(match.Groups[1].Value),
-            DataFinal: ParseDateCPBStyle(match.Groups[2].Value),
-            NumberMeditacaoes: int.Parse(match.Groups[3].Value)
-        );
-    }
-
-    public static DevocionalDayMonth ParseDateCPBStyle(string? dateText)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(dateText, nameof(dateText));
-
-        
-
-        ReadOnlySpan<char> dateSpan = dateText.AsSpan();
-
-        var enumerator = ParserDataRegex().EnumerateMatches(dateSpan);
-
-        if (enumerator.MoveNext())
-        {
-            dateSpan = dateSpan[enumerator.Current.Length..];
-        }
-
-        if (!DateTime.TryParseExact(dateSpan, "d/MMM", CultureCustomPtBR.PtBrCulture, DateTimeStyles.None, out var parsedDate))
-        {
-            throw new FormatException($"Invalid date format: {dateText}");
-        }
-
-        return new DevocionalDayMonth(parsedDate.Day, parsedDate.Month);
-    }
-
-    [GeneratedRegex(@"(\d{1,2}/\w{3})\s*–\s*(\d{1,2}/\w{3})\s*\((\d+)\s*meditações\)")]
-    private static partial Regex ParserHeaderRegex();
-    [GeneratedRegex(@"^\w{3}\s+")]
-    private static partial Regex ParserDataRegex();
+   
 }

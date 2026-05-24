@@ -1,4 +1,5 @@
 using AdventoAPI.CPB.API;
+using AdventoAPI.CPB.Utils;
 
 namespace AdventoAPI.CPB.Tests;
 
@@ -62,13 +63,11 @@ public sealed class DevocionalTests
         var blocos = await service.GetDevocionaisAsync(TestContext.CancellationToken);
         var firstUrl = blocos.FirstOrDefault()?.Dias.FirstOrDefault()?.Href;
 
-        if (string.IsNullOrEmpty(firstUrl))
-        {
-            Assert.Inconclusive("Não foi possível obter uma URL para testar o fetch individual.");
-        }
+        Assert.IsNotNull(firstUrl);
+    
 
         // Act
-        var devocional = await service.GetDevocional(firstUrl, TestContext.CancellationToken);
+        var devocional = await service.GetDevocionalDia(firstUrl, TestContext.CancellationToken);
 
         // Assert
         Assert.IsNotNull(devocional);

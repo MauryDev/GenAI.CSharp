@@ -11,7 +11,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/MauryDev/GenAI.CSharp</RepositoryUrl>
     <PackageTags>cpb api</PackageTags>
-    <VersionPrefix>1.0.3</VersionPrefix>
+    <VersionPrefix>1.0.4</VersionPrefix>
     <Authors>MauryDev</Authors>
   </PropertyGroup>
 

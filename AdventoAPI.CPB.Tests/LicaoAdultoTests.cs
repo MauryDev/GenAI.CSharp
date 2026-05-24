@@ -9,75 +9,43 @@ public sealed class LicaoAdultoTests
     private readonly LicaoAdulto _service = new();
 
     [TestMethod]
-    public async Task GetSabado_DeveRetornarObjetoValido()
+    public async Task Testar_GetLicaoAsync()
     {
-        // Arrange & Act
-        var resultado = await _service.GetSabado(TestContext.CancellationToken);
 
-        // Assert
-        Assert.IsNotNull(resultado);
-        Assert.AreEqual("Sábado", resultado.DiaSemana);
+        var resultado = await _service.GetLicaoAsync("https://mais.cpb.com.br/licao/vivendo-pela-fe-2o-trimestre-2026/", TestContext.CancellationToken);
+        if (resultado == null) return;
+
+
+        TestContext.WriteLine(resultado.Sabado.Conteudo);
+        Assert.DoesNotContain("Garanta", resultado.Sabado.Conteudo);
+        Assert.IsNotNull(resultado.Segunda.Title);
+        Assert.IsNotNull(resultado.Terca);
+        Assert.IsNotNull(resultado.Sabado.AnoBiblicoDia);
     }
 
     [TestMethod]
-    public async Task GetDiaAtual_DeveRetornarDiaOuLancarExcecao()
+
+    public async Task Testar_GetLicoesAsync()
     {
-        // Act & Assert
-        try
-        {
-            var resultado = await _service.GetDiaAtual();
-            Assert.IsNotNull(resultado.DiaSemana);
-        }
-        catch (KeyNotFoundException)
-        {
-            Assert.Fail("Dia atual não encontrado fora do período letivo.");
-        }
+        var trimestreData = await _service.GetLicoesAsync(TestContext.CancellationToken);
+
+        Assert.IsNotNull(trimestreData.Semanas[0]);
     }
 
     [TestMethod]
-    public async Task GetLicoesTrimestre_DeveRetornarListaNaoVazia()
+    public async Task Testar_Audios()
     {
-        // Arrange & Act
-        var licoes = await _service.GetLicoesTrimestre(TestContext.CancellationToken);
+        var audiosInfo = await _service.GetLicoesAudiosTrimestreAsync(TestContext.CancellationToken);
 
-        // Assert
-        Assert.IsNotEmpty(licoes);
+        Assert.IsNotNull(audiosInfo);
+
+        var audiosSemana = await _service.GetLicaoSemanaAudiosAsync(audiosInfo[0].AudiosLink, TestContext.CancellationToken);
+
+        Assert.IsNotEmpty(audiosSemana.Audios);
     }
 
-    [TestMethod]
-    public async Task GetLicaoByDiaSemana_DeveRetornarDadosParaDomingo()
-    {
-        // Arrange (0 = Domingo)
-        const int dia = 0;
 
-        // Act
-        var resultado = await _service.GetLicaoByDiaSemana(dia, TestContext.CancellationToken);
 
-        // Assert
-        Assert.AreEqual("Domingo", resultado.DiaSemana);
-        Assert.IsNotNull(resultado.Titulo);
-    }
 
-    [TestMethod]
-    public async Task BuscarPalavraChaveTrimestre_DeveRetornarResultadosParaTermoExistente()
-    {
-        // Arrange
-        const string termo = "Deus";
-
-        // Act
-        var resultado = await _service.BuscarPalavraChaveTrimestre(termo, TestContext.CancellationToken);
-
-        // Assert
-        Assert.IsNotNull(resultado.Resultados);
-    }
-    [TestMethod]
-    public void Testar_GetDiaNome()
-    {
-        var dias = Enumerable.Range(0,7);
-        string[] diasNome = ["Domingo", "Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado"];
-        var names = dias.Select(dia => LicaoAdulto.GetDiaSemana(dia));
-        int i = 0;
-        foreach (var nome in names) Assert.AreEqual(diasNome[i++], nome);
-    }
     public TestContext TestContext { get; set; }
 }

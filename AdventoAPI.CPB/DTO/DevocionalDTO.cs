@@ -4,12 +4,12 @@ using System.Text;
 
 namespace AdventoAPI.CPB.DTO;
 
-public record DevocionalInfo(string Url, string DiadaSemanaNome, string DiaMesNome, string Title,
+public record DevocionalInfo(Uri Url, string DiadaSemanaNome, string DiaMesNome, string Title,
          string Content,
          string versoBiblico
 );
 
-public record DevocionalDiaInfo(DevocionalDayMonth Data, string Titulo, string Href);
+public record DevocionalDiaInfo(DevocionalDayMonth Data, string Titulo, Uri Href);
 public record DevocionalSemanaBloco(DevocionalDayMonth DataInicio, DevocionalDayMonth DataFinal, int NumberMeditacaoes, List<DevocionalDiaInfo> Dias);
 public record MeditacaoInfo(string Title, string Description);
 

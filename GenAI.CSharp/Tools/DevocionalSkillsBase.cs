@@ -1,5 +1,6 @@
 ﻿using AdventoAPI.CPB.API;
 using AdventoAPI.CPB.DTO;
+using AdventoAPI.CPB.Utils;
 using GenAI.CSharp.Models;
 using System.ComponentModel;
 
@@ -9,11 +10,11 @@ namespace GenAI.CSharp.Tools;
 public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
 {
     readonly DevocionalBase _devocional = devocionalBase;
-    
-   
+
+
     public async Task<DevocionalContentSafe> devocional_today()
     {
-        
+
         var today = DateOnly.FromDateTime(DateTime.Now);
         return await devocional_getDevocional(today.Day, today.Month);
     }
@@ -23,7 +24,7 @@ public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
         return (await devocional_getAllDevocionaisInfo())[0];
     }
 
-    
+
     public async Task<DevocionalSemanaSafe> devocional_weekDevocionais(int week)
     {
         if (week < 1) throw new ArgumentOutOfRangeException(nameof(week), "Week index must be 1 or greater.");
@@ -56,12 +57,9 @@ public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
 
         var semanas = await _devocional.GetDevocionaisAsync();
 
-        var match = semanas.SelectMany(s => s.Dias).FirstOrDefault(d => d.Data.Day == day && d.Data.Month == month) ?? throw new KeyNotFoundException($"No devotional found for {day}/{month}.");
-        var href = match.Href;
-        if (string.IsNullOrWhiteSpace(href))
-            throw new InvalidOperationException("devotional link is missing for the requested date.");
+        var match = semanas.SelectMany(s => s.Dias).FirstOrDefault(d => d.Data.Day == day && d.Data.Month == month) ?? throw new KeyNotFoundException($"No devotional found for {day}/{month}.");        
 
-        var content = await _devocional.GetDevocional(href);
+        var content = await match.GetDevocionalDia(_devocional);
 
         return new DevocionalContentSafe(
             DiadaSemanaNome: content.DiadaSemanaNome ?? string.Empty,
@@ -103,11 +101,11 @@ public abstract class DevocionalSkillsBase(DevocionalBase devocionalBase)
     }
 
     public async Task<List<DevocionalContentSafe>> devocional_searchKeywordDateRange(
- int startDay,
- int startMonth,
- int endDay,
- int endMonth,
- string keyword)
+        int startDay,
+        int startMonth,
+        int endDay,
+        int endMonth,
+        string keyword)
     {
         var start = new DevocionalDayMonth(startDay, startMonth);
         var end = new DevocionalDayMonth(endDay, endMonth);
